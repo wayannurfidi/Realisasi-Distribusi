@@ -148,9 +148,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-sans);-webkit
 
 /* DETAIL PANEL */
 .detail-panel{border-top:1px solid var(--border);max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(.4,0,.2,1)}
-.detail-panel.open{max-height:1000px}
+.detail-panel.open{max-height:1400px}
 .detail-inner{padding:14px 16px 18px;background:var(--bg3)}
-.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px}.detail-grid>.detail-full{grid-column:1/-1}
 .det-section h4{font-size:0.59rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);font-family:var(--font-mono);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
 .info-rows{display:flex;flex-direction:column;gap:3px}
 .info-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.74rem}
@@ -221,6 +221,23 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-sans);-webkit
 .skeleton{background:linear-gradient(90deg,var(--bg2) 25%,var(--bg3) 50%,var(--bg2) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px;height:46px;margin-bottom:4px}
 @keyframes shimmer{to{background-position:-200% 0}}
 .no-result{text-align:center;padding:44px;color:var(--muted);font-size:0.84rem;display:none}
+
+/* ── PRODUCT TABLE dalam detail ── */
+.prod-table{width:100%;border-collapse:collapse;margin-top:6px;font-size:.72rem}
+.prod-table thead th{padding:5px 8px;font-size:.58rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-family:var(--font-mono);text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+.prod-table thead th.r{text-align:right}
+.prod-table tbody td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+.prod-table tbody tr:last-child td{border-bottom:none}
+.prod-table tbody tr:hover{background:rgba(255,255,255,.03)}
+.prod-table td.r{text-align:right;font-family:var(--font-mono);font-size:.7rem}
+.prod-table td.produk-name{font-size:.71rem;color:var(--text);max-width:180px}
+.badge-curah{background:var(--cyan-dim);color:var(--cyan);border:1px solid rgba(88,217,249,.3);font-size:.57rem;padding:1px 5px;border-radius:4px;font-family:var(--font-mono);white-space:nowrap;margin-left:4px}
+.badge-inbag{background:var(--purple-dim);color:var(--purple);border:1px solid var(--purple-border);font-size:.57rem;padding:1px 5px;border-radius:4px;font-family:var(--font-mono);white-space:nowrap;margin-left:4px}
+.prod-pbar{height:3px;background:var(--dim);border-radius:999px;overflow:hidden;margin-top:3px;min-width:50px}
+.prod-pbar-fill{height:100%;border-radius:999px}
+.prod-tgl{font-size:.63rem;font-family:var(--font-mono);color:var(--muted)}
+.prod-tgl span{color:var(--text)}
+.detail-full{grid-column:1/-1}
 .footer{margin-top:32px;padding-top:14px;border-top:1px solid var(--border);text-align:center;font-size:0.67rem;color:var(--muted);font-family:var(--font-mono)}
 
 /* Responsive */
@@ -579,6 +596,57 @@ function buildCard(d,idx){
   const tglGIval=fmtDate(d.tgl_gi);
   const tglGRval=fmtDate(d.tgl_gr);
 
+  const prods = d.products || [];
+  const hasMultiProd = prods.length > 1;
+  const prodTableHtml = prods.length > 0 ? `
+    <div class="det-section" style="margin-top:14px;grid-column:1/-1">
+      <h4>📦 Rincian Produk${d._armada==='kapal'?' (Muatan Kapal)':''} — ${prods.length} item</h4>
+      <table class="prod-table">
+        <thead>
+          <tr>
+            <th>Produk</th>
+            ${d._armada==='kapal'?'<th>Muatan</th>':''}
+            <th class="r">Qty PO</th>
+            <th class="r">DO</th>
+            <th class="r">GR</th>
+            <th class="r">Sisa</th>
+            <th>Tgl. GI</th>
+            <th>Tgl. GR</th>
+            <th style="min-width:70px">Progress</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${prods.map(p=>{
+            const pp=pctVal(p.qty_gr, p.qty_do||p.qty_po);
+            const pfc=fillColor(pp);
+            const pSisa=Math.max(0,(p.qty_do||p.qty_po||0)-p.qty_gr).toFixed(2);
+            const muatanBadge=d._armada==='kapal'
+              ? (p.jenis==='Curah'?'<span class="badge-curah">⛵ Curah</span>':'<span class="badge-inbag">📦 Inbag</span>')
+              : '';
+            const shortNama = p.nama.split(':')[0].replace(/@.*$/,'').replace(/;.*$/,'').trim();
+            return `<tr>
+              <td class="produk-name" title="${p.nama}">${shortNama}${d._armada!=='kapal'?'':''}</td>
+              ${d._armada==='kapal'?`<td>${muatanBadge}</td>`:''}
+              <td class="r">${fmtN(p.qty_po)}</td>
+              <td class="r">${fmtN(p.qty_do)}</td>
+              <td class="r" style="color:${pfc};font-weight:600">${fmtN(p.qty_gr)}</td>
+              <td class="r" style="color:${parseFloat(pSisa)===0?'var(--green)':'var(--amber)'}">${fmtN(pSisa)}</td>
+              <td class="prod-tgl"><span>${fmtDate(p.tgl_gi)||'—'}</span></td>
+              <td class="prod-tgl"><span style="color:${p.tgl_gr?'var(--green)':'var(--muted)'}">${fmtDate(p.tgl_gr)||'—'}</span></td>
+              <td>
+                <div style="display:flex;align-items:center;gap:5px">
+                  <div class="prod-pbar" style="flex:1">
+                    <div class="prod-pbar-fill" style="width:${pp}%;background:${pfc}"></div>
+                  </div>
+                  <span style="font-size:.62rem;font-family:var(--font-mono);color:${pfc};font-weight:700;min-width:28px">${pp}%</span>
+                </div>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>` : '';
+
   const detailHtml=`<div class="detail-panel${isOpen?' open':''}">
     <div class="detail-inner">
       <div class="detail-grid">
@@ -587,7 +655,7 @@ function buildCard(d,idx){
           <div class="info-rows">
             <div class="info-row"><span class="info-key">No. PO STO</span><span class="info-val">${d.no_po}</span></div>
             <div class="info-row"><span class="info-key">Tgl. PO</span><span class="info-val">${fmtDate(d.tgl_po)}</span></div>
-            <div class="info-row"><span class="info-key">Produk</span><span class="info-val" style="max-width:160px;text-align:right;font-size:.67rem">${d.produk||'—'}</span></div>
+            <div class="info-row"><span class="info-key">Produk</span><span class="info-val" style="max-width:160px;text-align:right;font-size:.67rem">${d.produk||'—'}${prods.length>1?' <span style="font-size:.6rem;color:var(--teal);margin-left:3px">+'+( prods.length-1)+' lainnya</span>':''}</span></div>
             <div class="info-row"><span class="info-key">Plant Asal</span><span class="info-val">${d.plant_asal||'—'}</span></div>
             <div class="info-row"><span class="info-key">Plant Tujuan</span><span class="info-val">${d.plant_tujuan||'—'}</span></div>
             <div class="info-row"><span class="info-key">Ekspeditur</span><span class="info-val">${d.ekspeditur||'—'}</span></div>
@@ -629,9 +697,10 @@ function buildCard(d,idx){
             </div>
           </div>
         </div>
+        ${prodTableHtml}
       </div>
     </div>
-  </div>`;
+  </div>`
 
   return `<div class="po-card" id="card-${idx}" style="animation-delay:${Math.min(idx,30)*0.018}s">
     <div class="po-row" onclick="toggleCard(${idx},'${d.no_po}')">
@@ -972,6 +1041,7 @@ function loadFromAppsScript(poList, gudangList) {
     d._armada = (d.alat_angkut||'').toLowerCase().includes('kapal') ? 'kapal' : 'truck';
     d._pct    = pctVal(d.qty_gr, d.qty_do || d.qty_po);
     d._sisa   = Math.max(0, (parseFloat(d.qty_po)||0) - (parseFloat(d.qty_do)||0));
+    if (!d.products) d.products = [];  // pastikan selalu ada
   });
 
   DATA = RAW_DATA.slice();
